@@ -933,6 +933,173 @@ O tym ci opowiem. Pora wyruszyć w przygodę!
             <figcaption class="white">CW</figcaption>
         </figure>
     </section>
+    <section class="slide" style="background-color:black">
+        <figure>
+            <img class="cover" src="pictures/48.png" alt="blog">
+            <figcaption class="white">CW</figcaption>
+        </figure>
+    </section>
+    <section class="slide prism over bhgry">
+        <div class="grid-container">
+            <div class="HeaderTitle GG"> 
+                <h2 class="headerCODE GG">OpenAI</h2>
+            </div>
+            <div class="PlaceCodeHere ">
+                <pre style="font-size: 18px;overflow: hidden;  " class="language-python">
+                    <code style="line-height: 18px !important;">
+                        from openai import OpenAI
+                        client = OpenAI(api_key="sk-I3DkQxDvxRByjEei3Bcfvsdsdsfdfcdsfasd3IoDOC")
+                        
+                        def get_embedding(text, model="text-embedding-ada-002"):
+                           text = text.replace("\n", " ")
+                           return client.embeddings.create(input = [text], model=model).data[0].embedding
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </section>
+    <section class="slide prism over bhgry">
+        <div class="grid-container">
+            <div class="HeaderTitle GG"> 
+                <h2 class="headerCODE GG">Zapytanie do ChatGTP</h2>
+            </div>
+            <div class="PlaceCodeHere ">
+                <pre style="font-size: 15px;overflow: hidden;  " class="language-python">
+                    <code style="line-height: 15px !important;">
+                        input_keyword = "brown Shoes for men under 1500"
+                        vector_of_input_keyword = get_embedding(input_keyword)
+
+                        my_prompt = f"""I have data in elastic search of all clothing products with their description, 
+                            color, price and the gender they belongs to.
+                            genders are {gender_list}
+                            colors are {color_list}
+                            price can be anything from 0 to 100k
+                            based on user's search query. give me json output as follows
+                            {{
+                            "color": "it should be what users want. give Not-Mentioned if user did not explicitly 
+                            mentioned the color in query. If the color mentioned by user is not present in above color list, give Not-Found",
+                            "gender": "gender should be from above list only. if not specified give Not-Mentioned."
+                            "max_price":
+                            "min_price":
+                            }}
+
+                            users query : {input_keyword}
+                            """
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </section>
+    <section class="slide prism over bhgry">
+        <div class="grid-container">
+            <div class="HeaderTitle GG"> 
+                <h2 class="headerCODE GG">Wysłanie zapytania do ChatGTP</h2>
+            </div>
+            <div class="PlaceCodeHere ">
+                <pre style="font-size: 16px;overflow: hidden;  " class="language-python">
+                    <code style="line-height: 16px !important;">
+                        response = client.chat.completions.create(
+                            model="gpt-3.5-turbo-1106",
+                            response_format={ "type": "json_object" },
+                            messages=[
+                              {"role": "system",
+                                "content": "You are a helpful assistant designed to output only in JSON format.No other text or explaination."},
+                              {"role": "user", "content": my_prompt}
+                            ]
+                        )
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </section>
+    <section class="slide prism over bhgry">
+        <div class="grid-container">
+            <div class="HeaderTitle GG"> 
+                <h2 class="headerCODE GG">Wyciąganie odpowiedzi z OpenAI</h2>
+            </div>
+            <div class="PlaceCodeHere ">
+                <pre style="font-size: 25px;overflow: hidden;  " class="language-python">
+                    <code style="line-height: 25px !important;">
+                        response.choices[0].message.content
+                       
+                        filter_map = json.loads(response.choices[0].message.content)
+                        # {'color': 'Brown', 'gender': 'Men', 'max_price': 1500, 'min_price': 0}
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </section>
+    <section class="slide prism over bhgry">
+        <div class="grid-container">
+            <div class="HeaderTitle GG"> 
+                <h2 class="headerCODE GG">Tworzenie zapytania hybrydowego do ElasticSearch</h2>
+            </div>
+            <div class="PlaceCodeHere canscroll">
+                <pre style="font-size: 18px;overflow: hidden;  " class="language-python">
+                    <code style="line-height: 18px !important;">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        q1 = {
+                            "knn": {
+                                "field": "NameDescriptionVector",
+                                "query_vector": vector_of_input_keyword,
+                                "k": 10,
+                                "num_candidates": 10000
+                            },
+                            "_source": ["ProductName","Description","PrimaryColor","Price (INR)","ProductBrand","Gender"]
+                        }
+                        
+                        
+                        filter_query = {
+                            "bool": {
+                                "must": [
+                                    {
+                                        "match": {
+                                            "PrimaryColor": {
+                                                "query": filter_map["color"],
+                                                "fuzzy_transpositions": "false",
+                                                "fuzziness": 0
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "range": {
+                                            "Price (INR)": {
+                                                "gte": filter_map["min_price"],
+                                                "lte": filter_map["max_price"]
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                        
+                        res = es.knn_search(index="my_products_demo2",
+                                            body=q1,
+                                            request_timeout=5000,
+                                            filter=filter_query)
+                        
+                        res["hits"]["hits"]
+                    </code>
+                </pre>
+            </div>
+        </div>
+    </section>
     <!-- <div class="progress"></div> -->
     <footer class="badge badge-top-left">
         <a href="#" class="fullscreen">Fullscreen</a>
